@@ -4,8 +4,6 @@
 import torch
 import numpy as np
 import torch_geometric
-from ogb.graphproppred import PygGraphPropPredDataset
-from ogb.lsc.pcqm4mv2_pyg import PygPCQM4Mv2Dataset
 from functools import lru_cache
 import pyximport
 import torch.distributed as dist
@@ -25,7 +23,7 @@ def convert_to_single_emb(x, offset: int = 512):
 def preprocess_item(item):
     edge_attr, edge_index, x = item.edge_attr, item.edge_index, item.x
     N = x.size(0)
-    x = convert_to_single_emb(x)
+    x = convert_to_single_emb(x, offset=1)
 
     # node adj matrix [N, N] bool
     adj = torch.zeros([N, N], dtype=torch.bool)
@@ -55,36 +53,3 @@ def preprocess_item(item):
     item.edge_input = torch.from_numpy(edge_input).long()
 
     return item
-
-
-class MyPygPCQM4MDataset(PygPCQM4Mv2Dataset):
-    def download(self):
-        super(MyPygPCQM4MDataset, self).download()
-
-    def process(self):
-        super(MyPygPCQM4MDataset, self).process()
-
-    @lru_cache(maxsize=16)
-    def __getitem__(self, idx):
-        item = self.get(self.indices()[idx])
-        item.idx = idx
-        return preprocess_item(item)
-
-
-class MyPygGraphPropPredDataset(PygGraphPropPredDataset):
-    def download(self):
-        if dist.get_rank() == 0:
-            super(MyPygGraphPropPredDataset, self).download()
-        dist.barrier()
-
-    def process(self):
-        if dist.get_rank() == 0:
-            super(MyPygGraphPropPredDataset, self).process()
-        dist.barrier()
-
-    @lru_cache(maxsize=16)
-    def __getitem__(self, idx):
-        item = self.get(self.indices()[idx])
-        item.idx = idx
-        item.y = item.y.reshape(-1)
-        return preprocess_item(item)

@@ -34,7 +34,7 @@ class GraphNodeFeature(nn.Module):
         self.num_atoms = num_atoms
 
         # 1 for graph token
-        self.atom_encoder = nn.Embedding(num_atoms + 1, hidden_dim, padding_idx=0)
+        self.atom_encoder = nn.Embedding(num_atoms, hidden_dim, padding_idx=0)
         self.in_degree_encoder = nn.Embedding(num_in_degree, hidden_dim, padding_idx=0)
         self.out_degree_encoder = nn.Embedding(
             num_out_degree, hidden_dim, padding_idx=0

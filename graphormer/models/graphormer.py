@@ -21,7 +21,6 @@ from fairseq.models import (
 from fairseq.modules import (
     LayerNorm,
 )
-from fairseq.utils import safe_hasattr
 
 from ..modules import init_graphormer_params, GraphormerGraphEncoder
 
@@ -204,7 +203,7 @@ class GraphormerEncoder(FairseqEncoder):
 
             if not self.share_input_output_embed:
                 self.embed_out = nn.Linear(
-                    args.encoder_embed_dim, args.num_classes, bias=False
+                    args.encoder_embed_dim * (args.max_nodes + 1), args.num_classes, bias=False
                 )
             else:
                 raise NotImplementedError
@@ -234,6 +233,7 @@ class GraphormerEncoder(FairseqEncoder):
         ):
             x = F.linear(x, self.graph_encoder.embed_tokens.weight)
         elif self.embed_out is not None:
+            x = torch.reshape(x, (x.size(0), -1))
             x = self.embed_out(x)
         if self.lm_output_learned_bias is not None:
             x = x + self.lm_output_learned_bias
