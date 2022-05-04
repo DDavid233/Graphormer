@@ -98,6 +98,7 @@ class GraphAttnBias(nn.Module):
             self.edge_dis_encoder = nn.Embedding(
                 num_edge_dis * num_heads * num_heads, 1
             )
+        self.num_spatial = num_spatial
         self.spatial_pos_encoder = nn.Embedding(num_spatial, num_heads, padding_idx=0)
 
         self.graph_token_virtual_distance = nn.Embedding(1, num_heads)
@@ -124,6 +125,7 @@ class GraphAttnBias(nn.Module):
 
         # spatial pos
         # [n_graph, n_node, n_node, n_head] -> [n_graph, n_head, n_node, n_node]
+        spatial_pos[spatial_pos >= self.num_spatial] = self.num_spatial - 1
         spatial_pos_bias = self.spatial_pos_encoder(spatial_pos).permute(0, 3, 1, 2)
         graph_attn_bias[:, :, 1:, 1:] = graph_attn_bias[:, :, 1:, 1:] + spatial_pos_bias
 
