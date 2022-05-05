@@ -196,14 +196,17 @@ class GraphormerEncoder(FairseqEncoder):
         )
         self.activation_fn = utils.get_activation_fn(args.activation_fn)
         self.layer_norm = LayerNorm(args.encoder_embed_dim)
+        self.readout = args.readout
 
         self.lm_output_learned_bias = None
         if self.load_softmax:
             self.lm_output_learned_bias = nn.Parameter(torch.zeros(1))
 
             if not self.share_input_output_embed:
+                out_embed_dim = args.encoder_embed_dim * (args.max_nodes + 1) if self.readout == "concat" \
+                    else args.encoder_embed_dim
                 self.embed_out = nn.Linear(
-                    args.encoder_embed_dim * (args.max_nodes + 1), args.num_classes, bias=False
+                    out_embed_dim, args.num_classes, bias=False
                 )
             else:
                 raise NotImplementedError
@@ -233,7 +236,16 @@ class GraphormerEncoder(FairseqEncoder):
         ):
             x = F.linear(x, self.graph_encoder.embed_tokens.weight)
         elif self.embed_out is not None:
-            x = torch.reshape(x, (x.size(0), -1))
+            if self.readout == "concat":
+                x = torch.reshape(x, (x.size(0), -1))
+            elif self.readout == "sum":
+                x = torch.sum(x, dim=1)
+            elif self.readout == "mean":
+                x = torch.mean(x, dim=1)
+            elif self.readout == "max":
+                x = torch.max(x, dim=1)[0]
+            else:
+                raise NotImplementedError
             x = self.embed_out(x)
         if self.lm_output_learned_bias is not None:
             x = x + self.lm_output_learned_bias
