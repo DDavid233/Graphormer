@@ -213,6 +213,14 @@ class GraphormerEncoder(FairseqEncoder):
                                         bidirectional=True)
                 elif self.readout == 'orthogonal':
                     self.cluster_number = 10
+                    hidden_size = 1024
+                    self.encoder = self.encoder = nn.Sequential(
+                        nn.Linear(args.encoder_embed_dim * self.num_nodes, hidden_size),
+                        nn.LeakyReLU(),
+                        nn.Linear(hidden_size, hidden_size),
+                        nn.LeakyReLU(),
+                        nn.Linear(hidden_size, args.encoder_embed_dim * self.num_nodes),
+                    )
                     self.dec = DEC(cluster_number=self.cluster_number, hidden_dimension=args.encoder_embed_dim,
                                    encoder=self.encoder,
                                    orthogonal=True, freeze_center=True, project_assignment=True)
@@ -262,7 +270,7 @@ class GraphormerEncoder(FairseqEncoder):
                 x = self.lstm(x)[0]
                 x = x[:, 0, :]
             elif self.readout == "orthogonal":
-                x = self.dec(x)
+                x, _ = self.dec(x)
             else:
                 raise NotImplementedError
             x = self.embed_out(x)
