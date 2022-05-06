@@ -27,6 +27,7 @@ from ..modules import init_graphormer_params, GraphormerGraphEncoder
 logger = logging.getLogger(__name__)
 
 from ..pretrain import load_pretrained_model
+from models.ptdec.dec import DEC
 
 
 @register_model("graphormer")
@@ -210,6 +211,12 @@ class GraphormerEncoder(FairseqEncoder):
                     self.lstm = nn.LSTM(input_size=args.encoder_embed_dim,
                                         hidden_size=args.encoder_embed_dim, num_layers=3, batch_first=True,
                                         bidirectional=True)
+                elif self.readout == 'orthogonal':
+                    self.cluster_number = 10
+                    self.dec = DEC(cluster_number=self.cluster_number, hidden_dimension=args.encoder_embed_dim,
+                                   encoder=self.encoder,
+                                   orthogonal=True, freeze_center=True, project_assignment=True)
+                    out_embed_dim = self.cluster_number * args.encoder_embed_dim
                 else:
                     out_embed_dim = args.encoder_embed_dim
                 self.embed_out = nn.Linear(
@@ -254,6 +261,8 @@ class GraphormerEncoder(FairseqEncoder):
             elif self.readout == "lstm":
                 x = self.lstm(x)[0]
                 x = x[:, 0, :]
+            elif self.readout == "orthogonal":
+                x = self.dec(x)
             else:
                 raise NotImplementedError
             x = self.embed_out(x)
