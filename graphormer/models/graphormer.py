@@ -203,8 +203,15 @@ class GraphormerEncoder(FairseqEncoder):
             self.lm_output_learned_bias = nn.Parameter(torch.zeros(1))
 
             if not self.share_input_output_embed:
-                out_embed_dim = args.encoder_embed_dim * (args.max_nodes + 1) if self.readout == "concat" \
-                    else args.encoder_embed_dim
+                if self.readout == "concat":
+                    out_embed_dim = args.encoder_embed_dim * (args.max_nodes + 1)
+                elif self.readout == "lstm":
+                    out_embed_dim = args.encoder_embed_dim * 2
+                    self.lstm = nn.LSTM(input_size=args.encoder_embed_dim,
+                                        hidden_size=args.encoder_embed_dim, num_layers=3, batch_first=True,
+                                        bidirectional=True)
+                else:
+                    out_embed_dim = args.encoder_embed_dim
                 self.embed_out = nn.Linear(
                     out_embed_dim, args.num_classes, bias=False
                 )
@@ -232,7 +239,7 @@ class GraphormerEncoder(FairseqEncoder):
 
         # project back to size of vocabulary
         if self.share_input_output_embed and hasattr(
-            self.graph_encoder.embed_tokens, "weight"
+                self.graph_encoder.embed_tokens, "weight"
         ):
             x = F.linear(x, self.graph_encoder.embed_tokens.weight)
         elif self.embed_out is not None:
@@ -244,6 +251,9 @@ class GraphormerEncoder(FairseqEncoder):
                 x = torch.mean(x, dim=1)
             elif self.readout == "max":
                 x = torch.max(x, dim=1)[0]
+            elif self.readout == "lstm":
+                x = self.lstm(x)[0]
+                x = x[:, 0, :]
             else:
                 raise NotImplementedError
             x = self.embed_out(x)
@@ -291,8 +301,8 @@ def base_architecture(args):
 @register_model_architecture("graphormer", "graphormer_base")
 def graphormer_base_architecture(args):
     if args.pretrained_model_name == "pcqm4mv1_graphormer_base" or \
-       args.pretrained_model_name == "pcqm4mv2_graphormer_base" or \
-       args.pretrained_model_name == "pcqm4mv1_graphormer_base_for_molhiv":
+            args.pretrained_model_name == "pcqm4mv2_graphormer_base" or \
+            args.pretrained_model_name == "pcqm4mv1_graphormer_base_for_molhiv":
         args.encoder_layers = 12
         args.encoder_attention_heads = 32
         args.encoder_ffn_embed_dim = 768
@@ -313,8 +323,8 @@ def graphormer_base_architecture(args):
     args.encoder_normalize_before = getattr(args, "encoder_normalize_before", True)
     args.apply_graphormer_init = getattr(args, "apply_graphormer_init", True)
     args.share_encoder_input_output_embed = getattr(
-            args, "share_encoder_input_output_embed", False
-        )
+        args, "share_encoder_input_output_embed", False
+    )
     args.no_token_positional_embeddings = getattr(
         args, "no_token_positional_embeddings", False
     )
@@ -335,8 +345,8 @@ def graphormer_slim_architecture(args):
     args.encoder_normalize_before = getattr(args, "encoder_normalize_before", True)
     args.apply_graphormer_init = getattr(args, "apply_graphormer_init", True)
     args.share_encoder_input_output_embed = getattr(
-            args, "share_encoder_input_output_embed", False
-        )
+        args, "share_encoder_input_output_embed", False
+    )
     args.no_token_positional_embeddings = getattr(
         args, "no_token_positional_embeddings", False
     )
@@ -357,8 +367,8 @@ def graphormer_large_architecture(args):
     args.encoder_normalize_before = getattr(args, "encoder_normalize_before", True)
     args.apply_graphormer_init = getattr(args, "apply_graphormer_init", True)
     args.share_encoder_input_output_embed = getattr(
-            args, "share_encoder_input_output_embed", False
-        )
+        args, "share_encoder_input_output_embed", False
+    )
     args.no_token_positional_embeddings = getattr(
         args, "no_token_positional_embeddings", False
     )
